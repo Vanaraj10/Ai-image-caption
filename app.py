@@ -1,28 +1,47 @@
-import gradio as gr
+from flask import Flask, request, render_template, jsonify
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
-import torch
+import io
+import os
 
-# Load model and processor
+app = Flask(__name__)
+
+# Load AI Model
 processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
 model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
-# Function to generate captions
-def generate_caption(image):
-    image = Image.open(image).convert("RGB")
+# Upload folder setup
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/generate_caption", methods=["POST"])
+def generate_caption():
+    if "image" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files["image"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    
+    # Save image
+    image_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(image_path)
+
+    # Process image
+    image = Image.open(image_path)
     inputs = processor(image, return_tensors="pt")
-    outputs = model.generate(**inputs)
-    caption = processor.decode(outputs[0], skip_special_tokens=True)
-    return caption
+    output = model.generate(**inputs)
+    caption = processor.decode(output[0], skip_special_tokens=True)
 
-# Create Gradio Interface
-iface = gr.Interface(
-    fn=generate_caption,
-    inputs=gr.Image(type="pil"),
-    outputs="text",
-    title="AI Image Caption Generator",
-    description="Upload an image and get an AI-generated caption.",
-)
+    # Return caption & image path
+    return jsonify({
+        "caption": caption,
+        "image_url": image_path
+    })
 
-# Run app
-iface.launch()
+if __name__ == "__main__":
+    app.run(debug=True)

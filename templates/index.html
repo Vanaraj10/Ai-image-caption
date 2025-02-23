@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Caption Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Image Caption Generator</h1>
+        <input type="file" id="imageinput">
+        <button onclick="generateCaption()">Generate Caption</button>
+        <div id="result">
+            <img id="uploadedImage" src="" alt="Uploaded Image" style="display: none;">
+            <p id="captionText"></p>
+        </div>
+    </div>
+
+    <script>
+        function generateCaption() {
+            let fileInput = document.getElementById("imageinput");
+            if (fileInput.files.length === 0) {
+                alert("Please upload an image first!");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("image", fileInput.files[0]);
+
+            fetch("/generate_caption", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById("uploadedImage").src = "/" + data.image_url;
+                    document.getElementById("uploadedImage").style.display = "block";
+                    document.getElementById("captionText").textContent = "Caption: " + data.caption;
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+    </script>
+</body>
+</html>
